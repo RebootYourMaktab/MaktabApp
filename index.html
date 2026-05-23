@@ -18,6 +18,9 @@
     button:active { background-color: maroon; color: blanchedalmond; transform: scale(0.95); }
     .login-btn { width: 90%; padding: 12px; }
     .save-exit-btn { background-color: maroon; color: blanchedalmond; padding: 10px 20px; font-size: 1.2rem; margin-top: 20px; }
+    
+    .exit-app-btn { background-color: #e74c3c; color: white; border: 3px solid #c0392b; padding: 10px 20px; font-size: 1.1rem; margin-top: 30px; }
+    
     .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }
     .category-btn { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 15px 10px; height: 100%; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; background-color: white; }
@@ -28,7 +31,15 @@
     .maroon-tick { color: maroon; font-size: 1.5rem; }
     .gray-cloud { background-color: #f0f0f0; color: #777; font-size: 0.7rem; padding: 3px 6px; border-radius: 10px; }
     .progress-container { width: 100%; background-color: rgba(128, 0, 0, 0.1); border-radius: 5px; height: 8px; margin-top: 8px; overflow: hidden; }
-    .progress-fill { background-color: limegreen; height: 100%; }
+    .progress-fill { background-color: limegreen; height: 100%; transition: width 0.3s ease; }
+    
+    #task-progress-wrapper { height: 12px; margin-bottom: 15px; }
+
+    /* NEW: Audio Button Styling */
+    .audio-btn { background-color: #3498db; color: white; border: 2px solid #2980b9; padding: 4px 8px; font-size: 0.7rem; border-radius: 5px; margin-top: 8px; margin-left: 0; display: inline-block; font-family: sans-serif; letter-spacing: 0; }
+    .audio-btn:active { background-color: #2980b9; transform: scale(0.95); }
+    .audio-playing { background-color: #e67e22; border-color: #d35400; } /* Turns Orange when playing */
+
     @media (min-width: 600px) { .button-grid { grid-template-columns: repeat(4, 1fr); } }
   </style>
 </head>
@@ -42,21 +53,28 @@
   </div>
 
   <div id="dashboard-screen" class="screen">
-    <h2 id="welcome-message">Welcome!</h2>
-    <h3>Your Categories</h3>
+    <div id="welcome-message"></div> <h3>Your Categories</h3>
     <div class="button-grid" id="category-grid"></div>
+    <button class="exit-app-btn" onclick="location.reload()">Exit App</button>
   </div>
 
   <div id="task-screen" class="screen">
     <h2 id="task-category-title">Tasks</h2>
+    
+    <div class="progress-container" id="task-progress-wrapper">
+      <div class="progress-fill" id="task-progress-fill" style="width: 0%;"></div>
+    </div>
+
     <table>
       <thead><tr><th>Task</th><th>Status</th><th>Teacher</th></tr></thead>
       <tbody id="task-list-body"></tbody>
     </table>
-    <button class="save-exit-btn" onclick="saveAndExit()">Save and Exit</button>
+    
+    <button class="save-exit-btn" onclick="saveAndExit()">Save and Return</button>
   </div>
 
   <script>
+    // --- CONFIGURE YOUR URL HERE ---
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGKQDC1O254tEszPknJTHZuc6XCj4cXv-zODYZOhc7ruUarOvom3DskNZLpPO6302D/exec";
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -65,8 +83,14 @@
     let currentStudentPin = "";
     let currentCategory = "";
     let pendingChanges = {};
+    
+    let currentTasksList = [];
+    let currentCategories = [];
 
-    // BULLETPROOF FETCH HELPER: Stripped of strict headers that cause 400 errors
+    // NEW: Audio Control Variables
+    let currentAudio = null;
+    let playingTaskId = null;
+
     function apiCall(payload) {
       return fetch(SCRIPT_URL, {
         method: 'POST',
@@ -82,10 +106,19 @@
       .then(data => {
         if (data.success) {
           currentStudentPin = pin;
+          currentCategories = data.studentData.categories; 
+          
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('dashboard-screen').style.display = 'block';
-          document.getElementById('welcome-message').innerText = `As-salamu alaykum, ${data.studentData.name}!`;
-          renderDashboard(data.studentData.categories);
+          
+          // The new multi-line formatting for the welcome message
+          document.getElementById('welcome-message').innerHTML = `
+            <h1 style="margin-bottom: 5px;">${data.studentData.name}</h1>
+            <h2 style="margin-bottom: 5px;">Ahlan wa sahlan</h2>
+            <h3>Welcome to your progress record</h3>
+          `;
+          
+          renderDashboard(currentCategories);
         } else { 
           document.getElementById('error-message').innerText = data.message || "Invalid login."; 
         }
@@ -114,10 +147,14 @@
       apiCall({ action: 'getTasks', pin: String(currentStudentPin), category: cat })
       .then(data => {
         if (data && data.tasks) {
+          currentTasksList = data.tasks; 
+          
           document.getElementById('dashboard-screen').style.display = 'none';
           document.getElementById('task-screen').style.display = 'block';
           document.getElementById('task-category-title').innerText = cat;
-          renderTasks(data.tasks);
+          
+          renderTasks(currentTasksList);
+          updateTaskProgressBar(); 
         } else { alert("No tasks found."); }
       })
       .catch(err => {
@@ -131,8 +168,21 @@
       tbody.innerHTML = '';
       tasks.forEach(task => {
         const isComp = (task.status === "Completed");
+        
+        // NEW: Check for an MP3 URL from the backend and build the button
+        let audioButtonHtml = "";
+        if (task.mp3Url && task.mp3Url.length > 5) {
+            audioButtonHtml = `<button class="audio-btn" id="audio-btn-${task.taskId}" onclick="toggleAudio('${task.taskId}', '${task.mp3Url}')">▶ Play Audio</button>`;
+        }
+
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${task.taskName}</td>
+        tr.innerHTML = `
+          <td>
+            <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                <span>${task.taskName}</span>
+                ${audioButtonHtml}
+            </div>
+          </td>
           <td class="center status-toggle" onclick="toggle('${task.taskId}', this)">
             ${isComp ? `<span class="lime-tick">&#10004;</span>` : `<span class="gray-cloud">Pending</span>`}
           </td>
@@ -141,14 +191,90 @@
       });
     }
 
+    // NEW: Audio Control Functions
+    function toggleAudio(taskId, url) {
+        const btn = document.getElementById(`audio-btn-${taskId}`);
+
+        // Stop if clicking the exact SAME playing button
+        if (currentAudio && playingTaskId === taskId) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0; 
+            btn.innerHTML = "▶ Play Audio";
+            btn.classList.remove("audio-playing");
+            currentAudio = null;
+            playingTaskId = null;
+            return;
+        }
+
+        // Stop any old audio if starting a new one
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            const oldBtn = document.getElementById(`audio-btn-${playingTaskId}`);
+            if (oldBtn) {
+                oldBtn.innerHTML = "▶ Play Audio";
+                oldBtn.classList.remove("audio-playing");
+            }
+        }
+
+        // Play the new audio
+        currentAudio = new Audio(url);
+        currentAudio.play().catch(err => {
+            alert("Could not play this audio. Check the link in the spreadsheet.");
+            console.error(err);
+        });
+        
+        btn.innerHTML = "⏹ Stop Audio";
+        btn.classList.add("audio-playing");
+        playingTaskId = taskId;
+
+        // Auto-reset when audio finishes naturally
+        currentAudio.onended = function() {
+            btn.innerHTML = "▶ Play Audio";
+            btn.classList.remove("audio-playing");
+            currentAudio = null;
+            playingTaskId = null;
+        };
+    }
+
+    // Function to kill audio immediately (used when leaving the page)
+    function stopAllAudio() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+            playingTaskId = null;
+        }
+    }
+
     function toggle(taskId, el) {
       const isComp = el.innerHTML.includes('lime-tick');
-      pendingChanges[taskId] = isComp ? "To be completed" : "Completed";
+      const newStatus = isComp ? "To be completed" : "Completed";
+      
+      pendingChanges[taskId] = newStatus;
       el.innerHTML = isComp ? `<span class="gray-cloud">Pending</span>` : `<span class="lime-tick">&#10004;</span>`;
+      
+      const taskIndex = currentTasksList.findIndex(t => String(t.taskId) === String(taskId));
+      if (taskIndex !== -1) {
+          currentTasksList[taskIndex].status = newStatus;
+      }
+      updateTaskProgressBar();
+    }
+
+    function updateTaskProgressBar() {
+      if (!currentTasksList || currentTasksList.length === 0) return;
+      const completedCount = currentTasksList.filter(t => t.status === "Completed" || t.verification === "Verified").length;
+      const percent = Math.round((completedCount / currentTasksList.length) * 100);
+      document.getElementById('task-progress-fill').style.width = percent + '%';
     }
 
     function saveAndExit() {
-      if (Object.keys(pendingChanges).length === 0) { location.reload(); return; }
+      stopAllAudio(); // Kill audio on save
+      
+      if (Object.keys(pendingChanges).length === 0) { 
+        returnToDashboard();
+        return; 
+      }
+      
       const payload = { 
         action: 'batchUpdate', 
         pin: currentStudentPin, 
@@ -162,13 +288,27 @@
           alert("ERROR: The server could not write to the specific rows!");
         } else {
           pendingChanges = {}; 
-          location.reload(); 
+          
+          const catIndex = currentCategories.findIndex(c => c.name === currentCategory);
+          if (catIndex !== -1) {
+              const completedCount = currentTasksList.filter(t => t.status === "Completed" || t.verification === "Verified").length;
+              currentCategories[catIndex].progress = Math.round((completedCount / currentTasksList.length) * 100);
+          }
+          
+          renderDashboard(currentCategories);
+          returnToDashboard();
         }
       })
       .catch(err => { 
         console.error("Save error:", err);
         alert("Error saving."); 
       });
+    }
+
+    function returnToDashboard() {
+        stopAllAudio(); // Kill audio when backing out
+        document.getElementById('task-screen').style.display = 'none';
+        document.getElementById('dashboard-screen').style.display = 'block';
     }
   </script>
 </body>
