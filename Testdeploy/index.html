@@ -1,0 +1,203 @@
+/**
+ * 1. TASK GENERATOR
+ * Generates tasks for a student and adds them to Progresssheet.
+ */
+function generateTasksForStudent(passedStudentName, passedWhatsappNum, selectedCategories = []) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const studentSheet = ss.getSheetByName("Verifylogin"); 
+  const maktabListSheet = ss.getSheetByName("Maktablists");
+  const progressSheet = ss.getSheetByName("Progresssheet"); 
+  
+  const studentData = studentSheet.getDataRange().getValues();
+  let validatedStudentName = "";
+  let groupNo = "";
+  
+  const inputName = String(passedStudentName).trim().toLowerCase();
+  const inputNumFull = String(passedWhatsappNum).trim();
+  const inputLast4 = inputNumFull.length >= 4 ? inputNumFull.slice(-4) : inputNumFull;
+  
+  for (let i = 1; i < studentData.length; i++) {
+    const sheetName = String(studentData[i][1]).trim().toLowerCase();
+    const sheetNumFull = String(studentData[i][2]).trim();
+    const sheetLast4 = sheetNumFull.length >= 4 ? sheetNumFull.slice(-4) : sheetNumFull;
+    
+    if (sheetName === inputName && sheetLast4 === inputLast4) { 
+      validatedStudentName = studentData[i][1]; 
+      groupNo = studentData[i][3];              
+      break;
+    }
+  }
+  
+  if (!validatedStudentName) return { success: false, message: "Invalid Name or Number." };
+
+  const tasksData = maktabListSheet.getDataRange().getValues();
+  let tasksToAdd = [];
+  
+  for (let i = 1; i < tasksData.length; i++) {
+    const categoryName = tasksData[i][0];
+    const taskName = tasksData[i][1];
+    if (!selectedCategories || selectedCategories.length === 0 || selectedCategories.includes(categoryName)) {
+      if (taskName) tasksToAdd.push({ category: categoryName, task: taskName });
+    }
+  }
+
+  const progressData = progressSheet.getDataRange().getValues();
+  const existingTasks = new Set();
+  for (let i = 1; i < progressData.length; i++) {
+    if (String(progressData[i][1]).trim().slice(-4) === inputLast4) {
+      existingTasks.add(`${progressData[i][3]}___${progressData[i][4]}`);
+    }
+  }
+
+  const newRows = [];
+  tasksToAdd.forEach(t => {
+    if (!existingTasks.has(`${t.category}___${t.task}`)) {
+      newRows.push([validatedStudentName, inputLast4, groupNo, t.category, t.task, "To be completed", "", "Unverified", ""]);
+    }
+  });
+  
+  if (newRows.length > 0) progressSheet.getRange(progressSheet.getLastRow() + 1, 1, newRows.length, 9).setValues(newRows);
+  return { success: true, message: `Added ${newRows.length} tasks.` };
+}
+
+
+/**
+ * 2. SECURE LOGIN (Token + PIN Method)
+ */
+function verifyStudentLogin(token, pin) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const studentData = ss.getSheetByName("Verifylogin").getDataRange().getValues();
+  const progressData = ss.getSheetByName("Progresssheet").getDataRange().getValues();
+  
+  for (let i = 1; i < studentData.length; i++) {
+    const sheetToken = String(studentData[i][4]).trim();          // Column E
+    const sheetPin = String(studentData[i][2]).trim().slice(-4);  // Column C
+    
+    // Check if Token AND PIN match
+    if (sheetToken === String(token).trim() && sheetPin === String(pin).trim()) {
+      const studentName = String(studentData[i][1]).trim();
+      const categoryStats = {}; 
+      
+      // Calculate progress using the PIN
+      for (let j = 1; j < progressData.length; j++) {
+        if (String(progressData[j][1]).trim().slice(-4) === sheetPin) {
+          const catName = String(progressData[j][3]).trim();
+          const taskStatus = String(progressData[j][5]).trim(); 
+          
+          if (!categoryStats[catName]) categoryStats[catName] = { total: 0, completed: 0 };
+          
+          categoryStats[catName].total += 1;
+          if (taskStatus === "Completed" || taskStatus === "Verified") {
+            categoryStats[catName].completed += 1;
+          }
+        }
+      }
+      
+      const categoriesArray = Object.keys(categoryStats).map(c => {
+         const percent = categoryStats[c].total > 0 ? Math.round((categoryStats[c].completed / categoryStats[c].total) * 100) : 0;
+         return { name: c, progress: percent };
+      });
+      
+      return { success: true, studentData: { name: studentName, categories: categoriesArray }};
+    }
+  }
+  return { success: false, message: "Invalid login credentials." };
+}
+
+
+/**
+ * 3. FETCH TASKS (Row ID Method)
+ */
+function getTasksForCategory(pin, categoryName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Progresssheet");
+  const data = sheet.getDataRange().getValues();
+  
+  const cleanPin = String(pin).trim().slice(-4);
+  const cleanCategory = String(categoryName).trim().toLowerCase();
+  const tasks = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    const rowPin = String(data[i][1]).trim().slice(-4);
+    const rowCategory = String(data[i][3]).trim().toLowerCase();
+    
+    if (rowPin === cleanPin && rowCategory === cleanCategory) {
+      tasks.push({
+        taskId: i + 1, // Exact Row ID
+        taskName: data[i][4],
+        status: data[i][5],
+        verification: data[i][7]
+      });
+    }
+  }
+  return { success: true, tasks: tasks };
+}
+
+
+/**
+ * 4. BATCH UPDATE TASKS (Row ID Method)
+ */
+function batchUpdateTasks(pin, categoryName, changes) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Progresssheet");
+  
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString(); 
+  let matchCount = 0; 
+  
+  changes.forEach(change => {
+    const rowNum = parseInt(change.taskId); 
+    if (rowNum > 1) {
+      sheet.getRange(rowNum, 6).setValue(change.status); 
+      
+      if (change.status === "Completed") {
+        sheet.getRange(rowNum, 7).setValue(formattedDate); 
+      } else {
+        sheet.getRange(rowNum, 7).setValue(""); 
+      }
+      matchCount++; 
+    }
+  });
+  
+  return { success: true, rowsUpdated: matchCount };
+}
+
+
+/**
+ * 5. API ROUTER (Corrected to remove invalid .setHeader calls)
+ */
+
+// Safety net for Safari GET redirects
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ success: false, message: "GET request safely caught." }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  // 1. Handle Preflight OPTIONS request
+  if (e && e.httpMethod === "OPTIONS") {
+    return ContentService.createTextOutput("OK")
+      .setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  // 2. Logic processing
+  let result;
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    if (payload.action === 'login') {
+      result = verifyStudentLogin(payload.token, payload.pin);
+    } else if (payload.action === 'getTasks') {
+      result = getTasksForCategory(payload.pin, payload.category);
+    } else if (payload.action === 'batchUpdate') {
+      result = batchUpdateTasks(payload.pin, payload.category, payload.changes);
+    } else {
+      result = { success: false, message: "Unknown action" };
+    }
+  } catch (err) {
+    result = { success: false, message: "Server Error: " + err.toString() };
+  }
+  
+  // 3. Return the JSON response
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
