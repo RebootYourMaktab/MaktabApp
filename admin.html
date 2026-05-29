@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Maktab Admin Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+  <link href="https://fonts.cdnfonts.com/css/gagalin" rel="stylesheet">
+
+  <style>
+    body { background-color: Grey; color: teal; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    h1, h2, h3, h4 { color: teal; font-family: 'GAGALIN', cursive; letter-spacing: 1px; font-weight: normal; margin-top: 0;}
+    .view { display: none !important; }
+    .view.active { display: block !important; background-color: silver; padding: 20px; border-radius: 10px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);; text-align: center; width: 100%; max-width: 600px; }
+    #login-screen.active { max-width: 400px; }    
+    .app-logo { width: 35vw; max-width: 140px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; background-color: transparent; margin-bottom: 15px; }
+    input, select { padding: 12px; margin: 10px 0 20px 0; border-radius: 5px; border: 1px solid teal; width: 85%; font-size: 1rem; color: teal; }
+    button { background-color: teal; color: WhiteSmoke; border: 3px solid teal; border-radius: 12px; font-size: 1.1rem; font-family: 'Gagalin', sans-serif; letter-spacing: 1px; cursor: pointer; padding: 10px 20px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.05); user-select: none; margin: 5px; }
+    button:active { background-color: teal; color: WhiteSmoke; transform: scale(0.95);   
+                   box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset }
+    .quote-box { background-color: whitesmoke ;margin-top: 30px; margin-bottom: 20px; font-size: 1rem; font-weight: normal; color: teal; line-height: 1.4; padding: 20px 10px; min-height: 40px; border: 1px solid Whitesmoke; border-radius: 12px; }
+    .dashboard-section { background-color: silver; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(0,128,128, 0.2); }
+    .list-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; text-align: left; }
+    .indicator { background-color: #E5E4E2; padding: 5px 10px; border-radius: 10px; font-size: 0.9rem; font-family: sans-serif; color: teal;}
+    .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid teal; padding-bottom: 10px; }
+    .nav-title { font-size: 1.3rem; margin: 0; }
+    .back-btn { background-color: teal; color: WhiteSmoke; font-size: 0.9rem; padding: 5px 10px; margin: 0;}
+    .button-grid { display: grid; }
+    .action-row { border-bottom: 1px solid #eee; padding: 15px 0; text-align: left; display: flex; flex-direction: column; }
+    .action-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; color: teal; }
+    .save-btn { background-color: grey; color: whitesmoke; border-color: teal; width: 100%;
+                box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;}
+  </style>
+</head>
+<body>
+
+  <div id="login-screen" class="view active">
+    <img src="logo.png" alt="Maktab Logo" class="app-logo">
+    <h2>ADMIN PORTAL</h2>
+    <input type="password" id="adminPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Enter 4-Digit PIN">
+    <button onclick="verifyAdminLogin()">Log In to Dashboard</button>
+    <div id="quote-box" class="quote-box">......</div>
+    <p id="error-message" style="color: red; font-weight: bold;"></p>
+  </div>
+
+  <div id="main-menu-screen" class="view">
+    <div id="welcome-message"></div>
+    <h2>Admin Dashboard</h2>
+    <div class="button-grid" style="grid-template-columns: 1fr; gap: 15px;">
+      <button class="list-btn" onclick="showScreen('progress-dashboard')" style="background: #004c4c; color: Whitesmoke; border-color: #004c4c; justify-content: center; padding: 15px;"> Manage Progress</button>
+      <button class="list-btn" onclick="showScreen('attendance-dashboard')" style="background: #006666; color: Whitesmoke; border-color: #006666; justify-content: center; padding: 15px;">Manage Attendance</button>
+      <button class="list-btn" onclick="alert('Student Records coming soon!')" style="background: #008080; color: Whitesmoke; border-color: #008080; justify-content: center; padding: 15px;"> Student Records</button>
+    </div>
+    <button onclick="location.reload()" style="background: #818589; color: Whitesmoke; border-color: #818589; margin-top: 30px; width: 100%;">Log Out</button>
+  </div>
+
+  <div id="progress-dashboard" class="view">
+    <div class="nav-header">
+      <h2 class="nav-title">Progress</h2>
+      <button class="back-btn" onclick="showScreen('main-menu-screen')">Back</button>
+    </div>
+    <div class="dashboard-section">
+      <h3>Class Progress</h3>
+      <button class="list-btn" onclick="openContext('class', null)" style="justify-content: center;">View Full Class</button>
+    </div>
+    <div class="dashboard-section">
+      <h3>Group Progress</h3>
+      <select id="group-selector"><option value="">Select a Group...</option></select>
+      <button class="list-btn" onclick="openContext('group', document.getElementById('group-selector').value)" style="justify-content: center;">View Group</button>
+    </div>
+    <div class="dashboard-section">
+      <h3>Individual Progress</h3>
+      <select id="student-selector"><option value="">Select a Student...</option></select>
+      <button class="list-btn" onclick="openContext('student', document.getElementById('student-selector').value)" style="justify-content: center;">View Student</button>
+    </div>
+  </div>
+
+  <div id="attendance-dashboard" class="view">
+    <div class="nav-header">
+      <h2 class="nav-title">Attendance</h2>
+      <button class="back-btn" onclick="showScreen('main-menu-screen')">Back</button>
+    </div>
+    <div class="button-grid" style="grid-template-columns: 1fr; gap: 10px;">
+      <button class="list-btn" onclick="openMarkRegister()" style="justify-content: center;"> Mark Register</button>
+      <button class="list-btn" onclick="openViewAttendance()" style="justify-content: center;"> View Attendance Records</button>
+      <button class="list-btn" onclick="openAttendanceStats()" style="justify-content: center;"> View Attendance Stats</button>
+    </div>
+  </div>
+
+  <div id="categories-screen" class="view"></div>
+  <div id="tasks-screen" class="view"></div>
+  <div id="action-screen" class="view"></div>
+  <div id="attendance-action-screen" class="view"></div>
+  <div id="view-attendance-screen" class="view"></div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeendbYTM07RafY1nOalzvY9bKgRp1v_WNvHTyl-e5lLriYPhuTWz1r4Dtk10X_kyG/exec";
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token'); 
+
+    let adminPin = "";
+    let allAttendance = []; 
+    let allStudents = [];
+    let attendanceState = {}; 
+    let allTasks = [];
+    let studentsMap = {};
+    let currentContext = { type: null, value: null }; 
+    let currentCategory = null;
+    let currentTask = null;
+    let pendingUpdates = {}; 
+
+    function showScreen(screenId) {
+      document.querySelectorAll('.view').forEach(screen => { screen.classList.remove('active'); });
+      const targetScreen = document.getElementById(screenId);
+      if (targetScreen) { targetScreen.classList.add('active'); }
+    }
+
+    function apiCall(payload) {
+      return fetch(SCRIPT_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }).then(r => r.json());
+    }
+
+    window.onload = function() {
+        apiCall({ action: 'getQuote' }).then(data => {
+            document.getElementById('quote-box').innerText = (data && data.success && data.quote) ? `"${data.quote}"` : '"Messenger of Allah (ﷺ) said: Whoever takes a path upon which to obtain knowledge, Allah makes the path to Paradise easy for him"';
+        }).catch(() => {});
+    };
+
+    function verifyAdminLogin() {
+      const pin = document.getElementById('adminPin').value;
+      document.getElementById('error-message').innerHTML = `<h4>Loading data....</h4>`;
+      apiCall({ action: 'adminLogin', pin: pin, token: urlToken }).then(data => {
+        if (data.success) {
+          adminPin = pin;
+          document.getElementById('welcome-message').innerHTML = `<h1>Muallimah<br>${data.adminData.name}</h1>`;
+          fetchDashboardData();
+        } else { document.getElementById('error-message').innerText = data.message || "Invalid Token or PIN."; }
+      });
+    }
+
+    function fetchDashboardData() {
+       apiCall({ action: 'getAdminDashboardData' }).then(data => {
+           if (data.success) {
+               allTasks = data.tasks;
+               allStudents = data.students; 
+               const grpSelect = document.getElementById('group-selector');
+               grpSelect.innerHTML = '<option value="">Select a Group...</option>';
+               data.groups.forEach(g => grpSelect.innerHTML += `<option value="${g}">Group ${g}</option>`);
+               const stuSelect = document.getElementById('student-selector');
+               stuSelect.innerHTML = '<option value="">Select a Student...</option>';
+               const studentsByGroup = {};
+               data.students.forEach(s => {
+                 studentsMap[s.pin] = s.name;
+                 if (!studentsByGroup[s.group]) studentsByGroup[s.group] = [];
+                 studentsByGroup[s.group].push(s);
+               });
+               Object.keys(studentsByGroup).sort().forEach(group => {
+                 let optgroup = document.createElement('optgroup');
+                 optgroup.label = `Group ${group}`;
+                 studentsByGroup[group].sort((a, b) => a.name.localeCompare(b.name)).forEach(s => {
+                   let opt = document.createElement('option');
+                   opt.value = s.pin;
+                   opt.innerText = s.name;
+                   optgroup.appendChild(opt);
+                 });
+                 stuSelect.appendChild(optgroup);
+               });
+               showScreen('main-menu-screen');
+               apiCall({ action: 'getAttendanceData' }).then(attData => { if(attData && attData.success) allAttendance = attData.records; }).catch(() => {});
+           } else { document.getElementById('error-message').innerText = "Data failed to load."; }
+       });
+    }
+
+    function getFilteredTasks() {
+      if (currentContext.type === 'group') return allTasks.filter(t => t.group === currentContext.value);
+      if (currentContext.type === 'student') return allTasks.filter(t => t.pin === currentContext.value);
+      return allTasks; 
+    }
+
+    function calcVerification(tasksArray) {
+      if (tasksArray.length === 0) return 0;
+      const verified = tasksArray.filter(t => t.verification === 'Verified').length;
+      return Math.round((verified / tasksArray.length) * 100);
+    }
+
+    function openContext(type, value) {
+      if ((type === 'group' || type === 'student') && !value) return alert("Please select an option.");
+      currentContext = { type, value };
+      renderCategoriesScreen();
+    }
+
+    function renderCategoriesScreen() {
+      const targetTasks = getFilteredTasks();
+      const categories = [...new Set(targetTasks.map(t => t.category))];
+      let title = currentContext.type === 'class' ? "Class Categories" : currentContext.type === 'group' ? `Group ${currentContext.value} Categories` : `${studentsMap[currentContext.value]}'s Categories`;
+      let html = `<div class="nav-header"><h2 class="nav-title">${title}</h2><button class="back-btn" onclick="showScreen('progress-dashboard')">Back</button></div>`;
+      categories.forEach(cat => {
+        const catTasks = targetTasks.filter(t => t.category === cat);
+        const percent = calcVerification(catTasks);
+        html += `<button class="list-btn" onclick="openCategory('${cat}')">${cat} <span class="indicator">${percent}% Verified</span></button>`;
+      });
+      document.getElementById('categories-screen').innerHTML = html;
+      showScreen('categories-screen');
+    }
+
+    function openCategory(category) {
+      currentCategory = category;
+      if (currentContext.type === 'student') { renderActionScreen(); } else { renderTasksScreen(); }
+    }
+
+    function renderTasksScreen() {
+      const targetTasks = getFilteredTasks().filter(t => t.category === currentCategory);
+      const tasks = [...new Set(targetTasks.map(t => t.task))];
+      let html = `<div class="nav-header"><h2 class="nav-title">${currentCategory}</h2><button class="back-btn" onclick="showScreen('categories-screen')">Back</button></div>`;
+      tasks.forEach(task => {
+        const percent = calcVerification(targetTasks.filter(t => t.task === task));
+        html += `<button class="list-btn" onclick="openTask('${task}')">${task} <span class="indicator">${percent}% Verified</span></button>`;
+      });
+      document.getElementById('tasks-screen').innerHTML = html;
+      showScreen('tasks-screen');
+    }
+
+    function openTask(task) { currentTask = task; renderActionScreen(); }
+
+    function renderActionScreen() {
+      let activeTasks = [];
+      let title = "";
+      let backTarget = "";
+      if (currentContext.type === 'student') {
+        activeTasks = getFilteredTasks().filter(t => t.category === currentCategory);
+        title = `${studentsMap[currentContext.value]}: ${currentCategory}`;
+        backTarget = "showScreen('categories-screen')";
+      } else {
+        activeTasks = getFilteredTasks().filter(t => t.category === currentCategory && t.task === currentTask);
+        title = `${currentTask}`;
+        backTarget = "showScreen('tasks-screen')";
+        activeTasks.sort((a, b) => { if (a.group === b.group) return a.name.localeCompare(b.name); return a.group.localeCompare(b.group, undefined, {numeric: true}); });
+      }
+      let html = `<div class="nav-header"><h2 class="nav-title">${title}</h2><button class="back-btn" onclick="${backTarget}">Back</button></div>`;
+      let currentGroupHeader = "";
+      activeTasks.forEach(t => {
+        const displayStatus = pendingUpdates[t.rowId]?.status || t.status;
+        const displayVerif = pendingUpdates[t.rowId]?.verification || t.verification;
+        if (currentContext.type !== 'student' && t.group !== currentGroupHeader) {
+            currentGroupHeader = t.group;
+            html += `<div style="background-color: teal; color: white; padding: 10px; margin: 15px 0 5px; border-radius: 5px; font-family: 'Gagalin', sans-serif;">GROUP ${t.group}</div>`;
+        }
+        const labelText = currentContext.type === 'student' ? `<span style="color: WhiteSmoke; font-weight: bold;">${t.task}</span>` : `<span style="color: WhiteSmoke; font-weight: bold;">${t.name}</span>`;
+        html += `<div style="display: flex; background-color: #696969; border-bottom: 2px solid #E5E4E2; padding: 12px 10px; margin-bottom: 3px; border-radius: 4px;">
+            <div style="width: 50%; text-align: left;">${labelText}</div>
+            <div style="width: 25%; text-align: center; cursor: pointer;" onclick="toggleLocalStatus(${t.rowId})">${displayStatus === 'Completed' ? '<span class="tick-green">✓</span>' : '<span style="color: lightgray; font-size: 0.7rem;">To be completed</span>'}</div>
+            <div style="width: 25%; text-align: center; cursor: pointer;" onclick="toggleLocalVerif(${t.rowId})">${displayVerif === 'Verified' ? '<span class="tick-gold">✓</span>' : '<span style="color: lightgray; font-size: 0.7rem;">To be verified</span>'}</div>
+          </div>`;
+      });
+      if (Object.keys(pendingUpdates).length > 0) html += `<button class="save-btn" onclick="saveBatchUpdates()">Save Changes</button>`;
+      document.getElementById('action-screen').innerHTML = html;
+      showScreen('action-screen');
+    }
+
+    function toggleLocalStatus(rowId) {
+      const originalTask = allTasks.find(t => t.rowId === rowId);
+      if (!pendingUpdates[rowId]) pendingUpdates[rowId] = { status: originalTask.status, verification: originalTask.verification, rowId: rowId };
+      pendingUpdates[rowId].status = pendingUpdates[rowId].status === 'Completed' ? 'To be completed' : 'Completed';
+      renderActionScreen();
+    }
+
+    function toggleLocalVerif(rowId) {
+      const originalTask = allTasks.find(t => t.rowId === rowId);
+      if (!pendingUpdates[rowId]) pendingUpdates[rowId] = { status: originalTask.status, verification: originalTask.verification, rowId: rowId };
+      pendingUpdates[rowId].verification = pendingUpdates[rowId].verification === 'Verified' ? 'Unverified' : 'Verified';
+      if (pendingUpdates[rowId].verification === 'Verified') pendingUpdates[rowId].status = 'Completed';
+      renderActionScreen();
+    }
+
+    function saveBatchUpdates() {
+      const changesArr = Object.values(pendingUpdates);
+      if (changesArr.length === 0) return;
+      document.querySelector('.save-btn').innerText = "Saving...";
+      apiCall({ action: 'adminUpdateTasks', changes: changesArr }).then(res => {
+         if (res.success) {
+            changesArr.forEach(c => { const taskIndex = allTasks.findIndex(t => t.rowId === c.rowId); if (taskIndex > -1) { allTasks[taskIndex].status = c.status; allTasks[taskIndex].verification = c.verification; } });
+            pendingUpdates = {}; renderActionScreen(); alert("Changes saved successfully!");
+         } else { alert("Save failed. Please try again."); document.querySelector('.save-btn').innerText = "Save Changes"; }
+      });
+    }
+
+    function openMarkRegister() { openAttendance(); }
+
+    function openAttendance() {
+      attendanceState = {};
+      allStudents.forEach(s => { attendanceState[s.pin] = 'Present'; });
+      renderAttendanceScreen();
+    }
+
+   function renderAttendanceScreen() {
+  showScreen('view-attendance-screen');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  let html = `
+    <div class="nav-header">
+      <h2 class="nav-title">Attendance</h2>
+      <button class="back-btn" onclick="showScreen('attendance-dashboard')">
+        Back
+      </button>
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; width:100%; font-family:sans-serif; margin-bottom:15px;">
+      <input type="date" id="attendance-date" value="${today}" style="width:60%; font-family:sans-serif; text-align:center;">
+      <span style="color:teal; font-weight:bold; font-family:gagalin; margin-left:auto;">
+        DATE
+      </span>
+    </div>
+  `;
+  
+      let currentGroupHeader = "";
+      let sortedStudents = [...allStudents].sort((a, b) => { if (a.group === b.group) return a.name.localeCompare(b.name); return a.group.localeCompare(b.group, undefined, {numeric: true}); });
+      sortedStudents.forEach(s => {
+          if (s.group !== currentGroupHeader) { currentGroupHeader = s.group; html += `<div style="background-color: teal; color: white; padding: 10px; margin-top: 15px; border-radius: 5px; font-family: 'Gagalin', sans-serif;">GROUP ${s.group}</div>`; }
+          const isPresent = attendanceState[s.pin] === 'Present';
+          html += `<div class="action-row" style="flex-direction: row; justify-content: space-between; align-items: center;"><div class="action-title" style="margin-bottom: 0;">${s.name}</div><div onclick="toggleAttendance('${s.pin}')" style="cursor: pointer; padding: 6px 15px; border-radius: 5px; font-weight: bold; ${isPresent ? 'background-color: #e8f5e9; color: forestgreen;' : 'background-color: #ffebee; color: crimson;'}">${isPresent ? 'PRESENT ✔' : 'ABSENT ✘'}</div></div>`;
+      });
+      html += `<button class="save-btn" onclick="submitAttendance()">Save Attendance</button>`;
+      document.getElementById('attendance-action-screen').innerHTML = html;
+      showScreen('attendance-action-screen');
+    }
+
+    function toggleAttendance(pin) { attendanceState[pin] = attendanceState[pin] === 'Present' ? 'Absent' : 'Present'; renderAttendanceScreen(); }
+
+    function submitAttendance() {
+      const dateVal = document.getElementById('attendance-date').value;
+      if (!dateVal) return alert("Please select a date.");
+      const absentees = [];
+      allStudents.forEach(s => { if (attendanceState[s.pin] === 'Absent') absentees.push({ name: s.name, whatsappnum: s.pin }); });
+      document.querySelector('#attendance-action-screen .save-btn').innerText = "Saving to Database...";
+      apiCall({ action: 'markAttendance', date: dateVal, absentees: absentees }).then(res => {
+         if (res.success) { alert("Attendance saved successfully!"); showScreen('attendance-dashboard'); } else { alert("Failed to save: " + res.message); document.querySelector('#attendance-action-screen .save-btn').innerText = "Save Attendance"; }
+      });
+    }
+
+    // --- VIEW ATTENDANCE LOGIC ---
+    function getDefaultDateRange() {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: firstDay.toISOString().split('T')[0], end: now.toISOString().split('T')[0] };
+    }
+
+    function openViewAttendance() { 
+      const range = getDefaultDateRange();
+      renderViewAttendanceScreen(range.start, range.end);
+    }
+
+    function renderViewAttendanceScreen(startDate, endDate) {
+
+  document.getElementById('view-attendance-screen').innerHTML =
+    `<h3 style="text-align:center;">Loading attendance...</h3>`;
+
+  showScreen('view-attendance-screen');
+
+  apiCall({
+    action: 'getAttendanceReport',
+    startDate: startDate,
+    endDate: endDate
+  }).then(data => {
+
+    if (!data.success) {
+      document.getElementById('view-attendance-screen').innerHTML =
+        `<h3>Error loading attendance</h3>`;
+      return;
+    }
+
+    const totalDays = data.totalDays;
+    const groups = data.groups;
+
+    // Format month title
+    const startObj = new Date(startDate);
+
+
+
+    let html = `
+      <div class="nav-header">
+        <h2 class="nav-title">View Attendance for a date range  </h2>
+        <button class="back-btn"
+          onclick="showScreen('attendance-dashboard')">
+          Back
+        </button>
+      </div>
+
+      <div style="
+        margin-bottom:15px;
+        background:WhiteSmoke;
+        padding:10px;
+        border-radius:8px;
+      ">
+      
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; font-family: sans-serif; margin-bottom: 15px;">    
+    <!-- Date Input Aligned Right -->
+    <input type="date" id="view-start-date" value="${startDate}" style="width: 50%; font-family: sans-serif; text-align: center;">
+    
+    <!-- DATE Label Aligned Left -->
+    <span style="color: teal; font-weight: bold; font-family: gagalin ;margin-left: auto;">START DATE</span>
+
+</div>
+       
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; font-family: sans-serif; margin-bottom: 15px;">    
+    <!-- Date Input Aligned Right -->
+    <input type="date" id="view-end-date" value="${endDate}" style="width: 50%; font-family: sans-serif; text-align: center;">
+    
+    <!-- DATE Label Aligned LEFT -->
+    <span style="color: teal; font-weight: bold; font-family: gagalin ;margin-left: auto;">END DATE</span>
+
+</div>
+      
+
+        <button onclick="
+          renderViewAttendanceScreen(
+            document.getElementById('view-start-date').value,
+            document.getElementById('view-end-date').value
+          )
+        ">
+          Filter
+        </button>
+      </div>
+
+      <div style="
+        position:sticky;
+        top:0;
+        background:#E5E4E2;
+        display:flex;
+        padding:10px 5px;
+        font-weight:bold;
+        border-bottom:2px solid teal;
+        z-index:10;
+      ">
+        <div style="width:60%; text-align:left;">
+          NAME
+        </div>
+
+        <div style="width:25%; text-align:center;">
+          DAY ABSENT
+        </div>
+
+        <div style="width:15%; text-align:right;">
+          ATT %
+        </div>
+      </div>
+    `
+
+    // Sort groups numerically
+    const sortedGroups = Object.keys(groups)
+      .sort((a, b) => Number(a) - Number(b));
+
+    sortedGroups.forEach(groupNo => {
+    
+      
+      // group headings
+      html += `
+        <div style="
+          background-color:teal;
+          color:whitesmoke;
+          padding:8px;
+          margin-top:10px;
+          border-radius:5px;
+          font-family:'Gagalin';
+        ">
+          GROUP ${groupNo}
+        </div>
+      `
+
+      groups[groupNo].forEach(student => {
+
+        html += `
+          <div
+            onclick="toggleAbsentDates('${student.pin}')"
+            style="
+              background-color:gray;
+              color:teal;
+              padding:10px;
+              margin-top:2px;
+              border-radius:4px;
+              cursor:pointer;
+              display:flex;
+              align-items:center;
+            "
+          >
+            <div style="
+              width:70%;
+              text-align:left;
+              color:whitesmoke
+            ">
+              ${student.name}
+            </div>
+            <div style="
+              width:25%;
+              text-align:center;
+              color:whitesmoke
+            ">
+              ${student.absentCount}
+            </div>
+            <div style="
+              width:15%;
+              text-align:center;
+              color:whitesmoke
+            ">
+              ${student.attendancePercent}%
+            </div>
+          </div>
+
+          <div
+            id="abs-${student.pin}"
+            style="
+              display:none;
+              padding:10px;
+              background:grey;
+              color:#ddd;
+              font-size:0.85rem;
+              border-radius:0 0 5px 5px;
+            "
+          >
+            ${
+              student.absentDates.length > 0
+              ?
+              `
+              <div style="
+                margin-bottom:6px;
+                color:whitesmoke;  
+              ">
+                Absent Dates
+              </div>
+              ${student.absentDates.map(date => `
+                <div style="
+                  padding:4px 0;
+                  border-bottom:1px solid #777;
+                ">
+                  ${new Date(date).toLocaleDateString()}
+                </div>
+              `).join('')}`:
+              `<div>No absences recorded</div>`
+            }
+
+          </div>
+        `;
+      });
+    });
+
+    
+    document.getElementById('view-attendance-screen').innerHTML = html;
+
+  }).catch(err => {
+
+    document.getElementById('view-attendance-screen').innerHTML =
+      `<h3>Failed to load attendance</h3>`;
+
+    console.error(err);
+  });
+}
+
+function toggleAbsentDates(pin) {
+
+  const el = document.getElementById(`abs-${pin}`);
+
+  if (!el) return;
+
+  el.style.display =
+    el.style.display === 'none'
+      ? 'block'
+      : 'none';
+}
+    
+
+   function openAttendanceStats() {
+      // Reuses the date range function we built for View Attendance
+      const range = getDefaultDateRange(); 
+      renderAttendanceStatsScreen(range.start, range.end);
+    }
+function renderAttendanceStatsScreen(startDate, endDate) {
+      document.getElementById('view-attendance-screen').innerHTML = `<h3 style="text-align:center;">Calculating Stats...</h3>`;
+      showScreen('view-attendance-screen');
+
+      apiCall({ action: 'getAttendanceReport', startDate: startDate, endDate: endDate }).then(data => {
+        if (!data || !data.success) {
+          document.getElementById('view-attendance-screen').innerHTML = `<h3>Error loading stats</h3><p style="color:red;">${data ? data.message : "Unknown Error"}</p>`;
+          return;
+        }
+
+        const totalDays = data.totalDays || 0;
+        const groups = data.groups || {};
+        // 1. Crunch the Numbers
+        let totalStudents = 0;
+        let totalAbsences = 0;
+        let perfectStudents = [];
+        let groupStats = [];
+        
+        // FIX: Pre-initialize these so the code never throws "Can't find variable"
+        let classPercent = 0;
+
+        Object.keys(groups).forEach(groupNo => {
+          let groupStudents = groups[groupNo].length;
+          let groupAbsences = 0;
+          
+          groups[groupNo].forEach(student => {
+            totalStudents++;
+            totalAbsences += student.absentCount;
+            groupAbsences += student.absentCount;
+            
+            if (student.absentCount === 0 && totalDays > 0) {
+              perfectStudents.push({ 
+                name: student.name, 
+                group: parseInt(groupNo) 
+              });
+            }
+          });
+          
+          let groupPossible = groupStudents * totalDays;
+          let groupPercent = groupPossible > 0 ? Math.round(((groupPossible - groupAbsences) / groupPossible) * 100) : 0;
+          groupStats.push({ group: groupNo, percent: groupPercent });
+        });
+
+        // FIX: Calculate it here, now it is in scope for the whole function
+        let classPossible = totalStudents * totalDays;
+        classPercent = classPossible > 0 ? Math.round(((classPossible - totalAbsences) / classPossible) * 100) : 0;
+        
+        perfectStudents.sort((a, b) => {
+          if (a.group !== b.group) return a.group - b.group;
+          return a.name.localeCompare(b.name);
+        });
+
+        // Now, when the HTML template below runs, classPercent will be ready for it.
+      
+        let html = `
+          <div class="nav-header">
+            <h2 class="nav-title">Statistics</h2>
+            <button class="back-btn" onclick="showScreen('attendance-dashboard')">Back</button>
+          </div>
+          
+          <div style="margin-bottom:15px; background:WhiteSmoke; padding:10px; border-radius:8px;">
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; font-family: sans-serif; margin-bottom: 15px;">    
+    <!-- Date Input Aligned Right -->
+    <input type="date" id="view-start-date" value="${startDate}" style="width: 50%; font-family: sans-serif; text-align: center;">
+    
+    <!-- DATE Label Aligned Left -->
+    <span style="color: teal; font-weight: bold; font-family: gagalin ;margin-left: auto;">START DATE</span>
+
+</div>
+
+       
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; font-family: sans-serif; margin-bottom: 15px;">    
+    <!-- Date Input Aligned Right -->
+    <input type="date" id="view-end-date" value="${endDate}" style="width: 50%; font-family: sans-serif; text-align: center;">
+    
+    <!-- DATE Label Aligned LEFT -->
+    <span style="color: teal; font-weight: bold; font-family: gagalin ;margin-left: auto;">END DATE</span>
+
+</div>
+
+            <button onclick="renderAttendanceStatsScreen(
+              document.getElementById('stats-start-date').value, 
+              document.getElementById('stats-end-date').value
+            )">Filter</button>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+            <div style="background: teal; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+              <h4 style="margin-bottom: 5px; color: WhiteSmoke;">Maktab Days</h4>
+              <div style="font-size: 2.2rem; font-weight: bold; font-family: sans-serif;">${totalDays}</div>
+            </div>
+            <div style="background: #006666; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+              <h4 style="margin-bottom: 5px; color: WhiteSmoke;">Class %</h4>
+              <div style="font-size: 2.2rem; font-weight: bold; font-family: sans-serif;">${totalDays > 0 ? classPercent + '%' : '-'}</div>
+            </div>
+          </div>
+          
+          <div class="dashboard-section" style="background-color: #f5f5f5;">
+            <h3 style="color: teal;">Group Breakdown</h3>`;
+            
+       // Sort groups numerically (1 to 4)
+        groupStats.sort((a, b) => Number(a.group) - Number(b.group)).forEach(stat => {
+          // Permanently set to limegreen
+          let barColor = 'limegreen'; 
+          
+          html += `
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; font-weight: bold; font-family: sans-serif; color: #424242; font-size: 0.9rem;">
+                <span>Group ${stat.group}</span>
+                <span>${totalDays > 0 ? stat.percent + '%' : '-'}</span>
+              </div>
+              <div style="background: #e0e0e0; height: 8px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                <div style="width: ${stat.percent}%; background: ${barColor}; height: 100%;"></div>
+              </div>
+            </div>`;
+        });
+      
+            
+        // ... (rest of your stats HTML generation)
+        
+        html += `</div>
+          <div class="dashboard-section" style="background-color: #f5f5f5;">
+            <h3 style="color: teal; margin-bottom: 10px;">100% Attendance 🏆</h3>
+            <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 10px; max-height: 250px; overflow-y: auto;">`;
+            
+        if (totalDays === 0) { 
+           html += `<div style="text-align: center; color: #666; padding: 10px;">No days recorded.</div>`; 
+        } else if (perfectStudents.length === 0) { 
+           html += `<div style="text-align: center; color: #666; padding: 10px;">No students have 100% attendance.</div>`; 
+        } else { 
+           // FIX: Correctly access the properties 'name' and 'group' from the object
+           perfectStudents.forEach(s => { 
+             html += `<div style="padding: 8px 5px; border-bottom: 1px dashed #a5d6a7; font-weight: bold; color: #2e7d32;">
+                        ⭐ ${s.name} <span style="font-size:0.8rem; color:#666;">(Grp ${s.group})</span>
+                      </div>`; 
+           }); 
+        }
+            
+        html += `</div></div>`;
+        
+
+        document.getElementById('view-attendance-screen').innerHTML = html;
+
+      }).catch(err => {
+        document.getElementById('view-attendance-screen').innerHTML = `<h3>Failed to load stats</h3><p>${err.message}</p>`;
+      });
+    }
+  </script>
+</body>
+</html>
